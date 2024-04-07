@@ -35,6 +35,7 @@ class SnapshotIsolationExecutor<K extends Comparable<? super K>, V> extends Repe
         if (e.isCommitted()) { // comes from the db, not the updates
             var saved = readSet.get(e.key);
             if (saved == null) {
+                //Phantom read is not blocked here
                 if (e.seqNumber > snapshot)
                     throw new AbortException();
                 readSetAddition.add(e);
