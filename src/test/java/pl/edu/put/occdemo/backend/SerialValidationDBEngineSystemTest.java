@@ -221,6 +221,42 @@ class SerialValidationDBEngineSystemTest {
             assertEquals(entries("a", "1", "c", "3","d","4", "e", "5"), db.rangeQuery("a", "f"));
         }, IsolationLevel.READ_COMMITTED);
     }
+    //Lost Update
+    @Test
+    void readCommitted4() {
+        engine.execute((db) -> {
+            db.write("a", "1");
+        }, IsolationLevel.READ_COMMITTED);
+
+        var timer = new FakeTimer();
+
+        Consumer<DBInterface<String, String>> tx1 = (db) -> {
+            timer.waitUntil(50);
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        Consumer<DBInterface<String, String>> tx2 = (db) -> {
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            timer.waitUntil(100);
+            x= Integer.parseInt(db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        runConcurrently(
+                engine,
+                tx1, IsolationLevel.READ_COMMITTED, () -> timer.finish(),
+                tx2, IsolationLevel.READ_COMMITTED, () -> timer.finish());
+
+    }
     @Test
     void repeatableRead0() {
         engine.execute((db) -> {
@@ -414,6 +450,42 @@ class SerialValidationDBEngineSystemTest {
         engine.execute((db) -> {
             assertEquals(entries("a", "1", "c", "3","d","4", "e", "5"), db.rangeQuery("a", "f"));
         }, IsolationLevel.REPEATABLE_READ);
+    }
+    //Lost Update
+    @Test
+    void repeatableRead4() {
+        engine.execute((db) -> {
+            db.write("a", "1");
+        }, IsolationLevel.REPEATABLE_READ);
+
+        var timer = new FakeTimer();
+
+        Consumer<DBInterface<String, String>> tx1 = (db) -> {
+            timer.waitUntil(50);
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        Consumer<DBInterface<String, String>> tx2 = (db) -> {
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            timer.waitUntil(100);
+            x= Integer.parseInt(db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        runConcurrently(
+                engine,
+                tx1, IsolationLevel.REPEATABLE_READ, () -> timer.finish(),
+                tx2, IsolationLevel.REPEATABLE_READ, () -> timer.finish());
+
     }
     @Test
     void serializable0() {
@@ -609,6 +681,42 @@ class SerialValidationDBEngineSystemTest {
             assertEquals(entries("a", "1", "c", "3","d","4", "e", "5"), db.rangeQuery("a", "f"));
         }, IsolationLevel.SERIALIZABLE);
     }
+    //Lost Update
+    @Test
+    void serializable4() {
+        engine.execute((db) -> {
+            db.write("a", "1");
+        }, IsolationLevel.SERIALIZABLE);
+
+        var timer = new FakeTimer();
+
+        Consumer<DBInterface<String, String>> tx1 = (db) -> {
+            timer.waitUntil(50);
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        Consumer<DBInterface<String, String>> tx2 = (db) -> {
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            timer.waitUntil(100);
+            x= Integer.parseInt(db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        runConcurrently(
+                engine,
+                tx1, IsolationLevel.SERIALIZABLE, () -> timer.finish(),
+                tx2, IsolationLevel.SERIALIZABLE, () -> timer.finish());
+
+    }
     @Test
     void snapshotIsolation0() {
         engine.execute((db) -> {
@@ -803,6 +911,45 @@ class SerialValidationDBEngineSystemTest {
             assertEquals(entries("a", "1", "c", "3","d","4", "e", "5"), db.rangeQuery("a", "f"));
         }, IsolationLevel.SNAPSHOT_ISOLATION);
     }
+    //Lost Update
+    @Test
+    void snapshotIsolation4() {
+        engine.execute((db) -> {
+            db.write("a", "1");
+        }, IsolationLevel.SNAPSHOT_ISOLATION);
+
+        var timer = new FakeTimer();
+
+        Consumer<DBInterface<String, String>> tx1 = (db) -> {
+            timer.waitUntil(50);
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        Consumer<DBInterface<String, String>> tx2 = (db) -> {
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            timer.waitUntil(100);
+            x= Integer.parseInt(db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        runConcurrently(
+                engine,
+                tx1, IsolationLevel.SNAPSHOT_ISOLATION, () -> timer.finish(),
+                tx2, IsolationLevel.SNAPSHOT_ISOLATION, () -> timer.finish());
+        engine.execute((db) -> {
+            assertEquals(entries("a", "2"), db.rangeQuery("a", "f"));
+        }, IsolationLevel.SNAPSHOT_ISOLATION);
+
+    }
     @Test
     void serializableSnapshotIsolation0() {
         engine.execute((db) -> {
@@ -996,5 +1143,45 @@ class SerialValidationDBEngineSystemTest {
         engine.execute((db) -> {
             assertEquals(entries("a", "1", "c", "3","d","4", "e", "5"), db.rangeQuery("a", "f"));
         }, IsolationLevel.SERIALIZABLE_SNAPSHOT_ISOLATION);
+    }
+    //Lost Update
+    @Test
+    void serializableSnapshotIsolation4() {
+        engine.execute((db) -> {
+            db.write("a", "1");
+        }, IsolationLevel.SERIALIZABLE_SNAPSHOT_ISOLATION);
+
+        var timer = new FakeTimer();
+
+        Consumer<DBInterface<String, String>> tx1 = (db) -> {
+            timer.waitUntil(50);
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            x+=2;
+            db.write("a", String.valueOf(x));
+            assertEquals("3", db.read("a"));
+            db.commit();
+        };
+
+
+        Consumer<DBInterface<String, String>> tx2 = (db) -> {
+            int x= Integer.parseInt(db.read("a"));
+            assertEquals("1", db.read("a"));
+            timer.waitUntil(100);
+            x= Integer.parseInt(db.read("a"));
+            x++;
+            db.write("a", String.valueOf(x));
+            assertEquals("2", db.read("a"));
+            db.commit();
+        };
+
+        runConcurrently(
+                engine,
+                tx1, IsolationLevel.SERIALIZABLE_SNAPSHOT_ISOLATION, () -> timer.finish(),
+                tx2, IsolationLevel.SERIALIZABLE_SNAPSHOT_ISOLATION, () -> timer.finish());
+        engine.execute((db) -> {
+            assertEquals(entries("a", "2"), db.rangeQuery("a", "f"));
+        }, IsolationLevel.SERIALIZABLE_SNAPSHOT_ISOLATION);
+
     }
 }
